@@ -98,10 +98,15 @@ export default function PaywallScreen() {
           },
         });
 
-        const sub = await fetchAnnualProduct();
-        if (sub) setProduct(sub);
-      } catch (err: any) {
-        setError(err.message || 'Could not connect to App Store');
+        // Try to fetch product for localized price — silently fall back to $11.99
+        try {
+          const sub = await fetchAnnualProduct();
+          if (sub) setProduct(sub);
+        } catch {
+          // Connection or product fetch failed — paywall still renders with fallback price
+        }
+      } catch {
+        // Subscription check failed — continue showing paywall
       } finally {
         setLoading(false);
       }
