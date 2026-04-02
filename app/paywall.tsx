@@ -142,13 +142,13 @@ export default function PaywallScreen() {
     setRestoring(true);
     try {
       const found = await restorePurchases();
+      setRestoring(false);
       if (!found) {
         setError('No previous subscription found.');
-        setRestoring(false);
       }
     } catch (err: any) {
-      setError(err.message || 'Restore failed');
       setRestoring(false);
+      setError(err.message || 'Restore failed');
     }
   };
 

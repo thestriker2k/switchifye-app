@@ -105,13 +105,33 @@ export function addPurchaseListeners({ onSuccess, onError }: ListenerCallbacks):
 // ── Restore ────────────────────────────────────────────────────────────
 
 export async function restorePurchases(): Promise<boolean> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Restore timed out. Please try again.')), 15000),
+  );
+
+  return Promise.race([restorePurchasesInner(), timeout]);
+}
+
+async function restorePurchasesInner(): Promise<boolean> {
   await ensureConnection();
+  console.log('[IAP] restoring: fetching purchases');
   const purchases = await getAvailablePurchases();
+  console.log('[IAP] restoring: got purchases', purchases.length);
   const annual = purchases.find((p) => p.productId === ANNUAL_SKU);
   if (!annual) return false;
 
+  console.log('[IAP] restoring: validating receipt');
   await validateReceiptOnServer(annual);
-  await finishTransaction({ purchase: annual, isConsumable: false });
+
+  console.log('[IAP] restoring: finishing transaction');
+  try {
+    await finishTransaction({ purchase: annual, isConsumable: false });
+  } catch (err) {
+    // Subscription is already activated server-side; finishing is just cleanup
+    console.warn('[IAP] restoring: finishTransaction failed (non-fatal):', err);
+  }
+
+  console.log('[IAP] restoring: done');
   return true;
 }
 
