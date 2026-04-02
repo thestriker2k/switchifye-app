@@ -26,18 +26,18 @@ import {
 const FEATURES: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: string }[] = [
   {
     icon: 'shield-checkmark',
-    title: 'Unlimited Switches',
-    desc: 'Create as many safety switches as you need',
+    title: 'Up to 5 Switches',
+    desc: 'Create up to 5 safety switches',
   },
   {
     icon: 'people',
-    title: 'Unlimited Recipients',
-    desc: 'Add all the contacts you want to notify',
+    title: 'Up to 10 Contacts',
+    desc: 'Add up to 10 contacts per switch',
   },
   {
-    icon: 'flash',
-    title: 'Priority Delivery',
-    desc: 'Your alerts are sent first, every time',
+    icon: 'time-outline',
+    title: 'Flexible Check-In Times',
+    desc: 'Choose any check-in interval that works for you',
   },
   {
     icon: 'chatbubble-ellipses',
