@@ -57,6 +57,14 @@ export default function PaywallScreen() {
   const [product, setProduct] = useState<ProductSubscription | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
+  const dismissPaywall = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
+
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
@@ -154,7 +162,7 @@ export default function PaywallScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.subscribedScroll} bounces={false}>
-          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.closeBtn} onPress={dismissPaywall}>
             <Ionicons name="close" size={26} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
 
@@ -172,7 +180,7 @@ export default function PaywallScreen() {
               You already have an active subscription. Enjoy all Pro features!
             </Text>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={dismissPaywall}
               activeOpacity={0.8}
               style={{ width: '100%', marginTop: 32 }}
             >
@@ -197,7 +205,7 @@ export default function PaywallScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
         {/* Close button */}
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.closeBtn} onPress={dismissPaywall}>
           <Ionicons name="close" size={26} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
 
