@@ -20,25 +20,30 @@ export const ANNUAL_SKU = 'com.switchifye.app.annual';
 
 const VALIDATE_URL = 'https://app.switchifye.com/api/iap/validate-receipt';
 
-// ── Store connection (idempotent) ──────────────────────────────────────
+// ── Store connection (with retry) ─────────────────────────────────────
 
-let connected = false;
-
-export async function connectToStore(): Promise<void> {
-  if (connected) return;
-  await initConnection();
-  connected = true;
+async function ensureConnection(): Promise<void> {
+  try {
+    await initConnection();
+  } catch (err) {
+    // Wait 1 second and retry once
+    await new Promise((r) => setTimeout(r, 1000));
+    await initConnection();
+  }
 }
 
 export async function disconnectFromStore(): Promise<void> {
-  if (!connected) return;
-  await endConnection();
-  connected = false;
+  try {
+    await endConnection();
+  } catch (err) {
+    console.error('[IAP] Disconnect error:', err);
+  }
 }
 
 // ── Product fetching ───────────────────────────────────────────────────
 
 export async function fetchAnnualProduct(): Promise<ProductSubscription | null> {
+  await ensureConnection();
   const products = await fetchProducts({ skus: [ANNUAL_SKU], type: 'subs' });
   if (!products || products.length === 0) return null;
   return products[0] as ProductSubscription;
@@ -47,6 +52,7 @@ export async function fetchAnnualProduct(): Promise<ProductSubscription | null> 
 // ── Purchase ───────────────────────────────────────────────────────────
 
 export async function buyAnnual(subscription?: ProductSubscription): Promise<void> {
+  await ensureConnection();
   if (Platform.OS === 'ios') {
     await requestPurchase({
       request: { apple: { sku: ANNUAL_SKU } },
@@ -99,6 +105,7 @@ export function addPurchaseListeners({ onSuccess, onError }: ListenerCallbacks):
 // ── Restore ────────────────────────────────────────────────────────────
 
 export async function restorePurchases(): Promise<boolean> {
+  await ensureConnection();
   const purchases = await getAvailablePurchases();
   const annual = purchases.find((p) => p.productId === ANNUAL_SKU);
   if (!annual) return false;

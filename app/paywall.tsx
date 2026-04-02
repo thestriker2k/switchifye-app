@@ -12,8 +12,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ProductSubscription } from 'react-native-iap';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 import {
-  connectToStore,
   disconnectFromStore,
   fetchAnnualProduct,
   buyAnnual,
@@ -55,13 +55,35 @@ export default function PaywallScreen() {
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [product, setProduct] = useState<ProductSubscription | null>(null);
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
     async function init() {
       try {
-        await connectToStore();
+        // Check if user already has an active subscription
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData.session;
+        if (session) {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${session.user.id}&status=in.(active,grace_period,billing_retry)&select=status,plan_id`,
+            {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                apikey: SUPABASE_ANON_KEY,
+              },
+            },
+          );
+          if (res.ok) {
+            const rows = await res.json();
+            if (rows.length > 0 && rows[0].plan_id !== 'free') {
+              setAlreadySubscribed(true);
+              setLoading(false);
+              return;
+            }
+          }
+        }
 
         cleanup = addPurchaseListeners({
           onSuccess: () => {
@@ -120,6 +142,51 @@ export default function PaywallScreen() {
       setRestoring(false);
     }
   };
+
+  // ── Already subscribed state ─────────────────────────────────────────
+
+  if (alreadySubscribed) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.subscribedScroll} bounces={false}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+            <Ionicons name="close" size={26} color="rgba(255,255,255,0.6)" />
+          </TouchableOpacity>
+
+          <View style={styles.subscribedContent}>
+            <LinearGradient
+              colors={['#4A9FF5', '#3EEBBE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCircle}
+            >
+              <Ionicons name="checkmark-circle" size={40} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.heroTitle}>Already Subscribed</Text>
+            <Text style={styles.heroSubtitle}>
+              You already have an active subscription. Enjoy all Pro features!
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+              style={{ width: '100%', marginTop: 32 }}
+            >
+              <LinearGradient
+                colors={['#4A9FF5', '#3EEBBE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.ctaBtn}
+              >
+                <Text style={styles.ctaText}>Go Back</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Purchase UI ──────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -240,6 +307,16 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 24,
     paddingBottom: 40,
+  },
+  subscribedScroll: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    flex: 1,
+  },
+  subscribedContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeBtn: {
     alignSelf: 'flex-start',
