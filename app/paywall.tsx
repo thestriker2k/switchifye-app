@@ -134,7 +134,12 @@ export default function PaywallScreen() {
       await buyAnnual(product ?? undefined);
     } catch (err: any) {
       setPurchasing(false);
-      setError(err.message || 'Something went wrong');
+      const msg = (err.message || err.code || '').toLowerCase();
+      if (msg.includes('already owned') || msg.includes('e_already_owned')) {
+        setError('You already have an active subscription. Tap Restore Purchase below to activate it.');
+      } else {
+        setError(err.message || 'Something went wrong');
+      }
     }
   };
 
