@@ -58,7 +58,8 @@ export default function PaywallScreen() {
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   const dismissPaywall = () => {
-    router.replace('/');
+    console.log("DISMISSING PAYWALL");
+    router.replace({ pathname: "/" });
   };
 
   useEffect(() => {
