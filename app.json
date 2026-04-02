@@ -1,30 +1,47 @@
 {
   "expo": {
-    "name": "switchifye-app",
+    "name": "Switchifye",
     "slug": "switchifye-app",
+    "scheme": "switchifye",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.switchifye.app",
+      "usesAppleSignIn": true,
+      "newArchEnabled": false,
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": []
       },
-      "predictiveBackGestureEnabled": false
+      "infoPlist": {
+        "NSUserNotificationUsageDescription": "We'll remind you to check in so your switch doesn't trigger",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#3B82F6"
+        }
+      ],
+      "expo-router",
+      "expo-font",
+      "expo-web-browser",
+      "expo-apple-authentication",
+      "react-native-iap",
+      ["expo-build-properties", { "android": { "kotlinVersion": "2.2.0" } }]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "807eb2aa-5ce0-4599-b7ac-8f58e8fcf471"
+      }
     }
   }
 }
