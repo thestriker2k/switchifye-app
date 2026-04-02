@@ -284,7 +284,7 @@ export default function SettingsScreen() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.upgradeLabel}>Upgrade to Pro</Text>
+                    <Text style={styles.upgradeLabel}>Upgrade to Premium</Text>
                     <Ionicons name="chevron-forward" size={18} color="#3EEBBE" />
                   </TouchableOpacity>
                 )}
@@ -355,7 +355,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={styles.version}>Switchifye v1.0.0</Text>
+        <Text style={styles.version}>Switchifye v1.0.1</Text>
       </ScrollView>
     </SafeAreaView>
   );
