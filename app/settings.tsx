@@ -20,7 +20,7 @@ const APP_URL = 'https://app.switchifye.com';
 
 const PLAN_NAMES: Record<string, string> = {
   free: 'Free',
-  starter: 'Starter',
+  starter: 'Premium',
   pro: 'Pro',
   enterprise: 'Enterprise',
 };

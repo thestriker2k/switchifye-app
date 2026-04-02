@@ -174,7 +174,7 @@ export default function PaywallScreen() {
             </LinearGradient>
             <Text style={styles.heroTitle}>Already Subscribed</Text>
             <Text style={styles.heroSubtitle}>
-              You already have an active subscription. Enjoy all Pro features!
+              You already have an active subscription. Enjoy all Premium features!
             </Text>
             <TouchableOpacity
               onPress={dismissPaywall}
@@ -216,7 +216,7 @@ export default function PaywallScreen() {
           >
             <Ionicons name="shield-checkmark" size={40} color="#fff" />
           </LinearGradient>
-          <Text style={styles.heroTitle}>Upgrade to Pro</Text>
+          <Text style={styles.heroTitle}>Upgrade to Premium</Text>
           <Text style={styles.heroSubtitle}>
             Get the most out of Switchifye with more switches, contacts, and premium features.
           </Text>
