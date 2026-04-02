@@ -218,7 +218,7 @@ export default function PaywallScreen() {
           </LinearGradient>
           <Text style={styles.heroTitle}>Upgrade to Pro</Text>
           <Text style={styles.heroSubtitle}>
-            Get the most out of Switchifye with unlimited switches, contacts, and premium features.
+            Get the most out of Switchifye with more switches, contacts, and premium features.
           </Text>
         </View>
 
