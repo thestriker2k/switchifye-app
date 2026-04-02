@@ -37,12 +37,12 @@ const FEATURES: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: str
   {
     icon: 'time-outline',
     title: 'Flexible Check-In Times',
-    desc: 'Choose any check-in interval that works for you',
+    desc: 'Choose a check-in interval that works for you',
   },
   {
     icon: 'chatbubble-ellipses',
     title: 'Custom Messages',
-    desc: 'Personalise messages for each recipient',
+    desc: 'Write personalized messages for each recipient. Include important information, instructions, or heartfelt words.',
   },
 ];
 
