@@ -78,11 +78,21 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    // Check initial session and validate token server-side
+    supabase.auth.getSession().then(async ({ data }) => {
       if (data.session) {
+        // Validate the token is still valid (catches deleted accounts)
+        const { error } = await supabase.auth.getUser(data.session.access_token);
+        if (error) {
+          // Token is stale (e.g. account was deleted) — clear it
+          await supabase.auth.signOut();
+          setSession(null);
+          return;
+        }
+        setSession(data.session);
         checkSubscription(data.session);
+      } else {
+        setSession(null);
       }
     });
 
