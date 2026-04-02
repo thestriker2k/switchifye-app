@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -27,6 +27,7 @@ const PLAN_NAMES: Record<string, string> = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const navigatingRef = useRef(false);
   const [email, setEmail] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(true);
   const [reminderLoading, setReminderLoading] = useState(false);
@@ -275,7 +276,12 @@ export default function SettingsScreen() {
                 ) : (
                   <TouchableOpacity
                     style={styles.row}
-                    onPress={() => router.push('/paywall')}
+                    onPress={() => {
+                      if (navigatingRef.current) return;
+                      navigatingRef.current = true;
+                      router.push('/paywall');
+                      setTimeout(() => { navigatingRef.current = false; }, 1000);
+                    }}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.upgradeLabel}>Upgrade to Pro</Text>

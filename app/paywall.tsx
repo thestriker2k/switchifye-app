@@ -58,11 +58,7 @@ export default function PaywallScreen() {
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   const dismissPaywall = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
-    }
+    router.replace('/');
   };
 
   useEffect(() => {
