@@ -59,9 +59,7 @@ export default function RootLayout() {
 
     const onLoginScreen = segments[0] === "login";
 
-    if (!session && !onLoginScreen) {
-      router.replace("/login");
-    } else if (session && onLoginScreen) {
+    if (session && onLoginScreen) {
       router.replace("/");
     }
   }, [session, segments]);

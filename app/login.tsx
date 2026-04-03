@@ -295,6 +295,16 @@ export default function LoginScreen() {
               <Text style={styles.errorText}>{msg}</Text>
             </View>
           )}
+
+          {/* Explore without account */}
+          <TouchableOpacity
+            onPress={() => router.replace("/")}
+            disabled={anyLoading}
+            activeOpacity={0.6}
+            style={styles.exploreLink}
+          >
+            <Text style={styles.exploreLinkText}>Explore First</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
@@ -456,6 +466,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#f87171",
     textAlign: "center",
+  },
+  exploreLink: {
+    alignItems: "center",
+    marginTop: 4,
+  },
+  exploreLinkText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
   },
   footer: {
     marginTop: 32,
