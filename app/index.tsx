@@ -104,9 +104,12 @@ function LandingScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.landingCta}
           >
-            <Text style={styles.landingCtaText}>Sign Up to Get Started</Text>
+            <Text style={styles.landingCtaText}>Create Free Account</Text>
           </LinearGradient>
         </TouchableOpacity>
+        <Text style={styles.landingDisclaimer}>
+          No credit card required · Free forever on the basic plan
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -400,5 +403,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#fff",
+  },
+  landingDisclaimer: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.4)",
+    textAlign: "center",
+    marginTop: 12,
   },
 });
