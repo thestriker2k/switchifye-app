@@ -298,7 +298,7 @@ export default function LoginScreen() {
 
           {/* Explore without account */}
           <TouchableOpacity
-            onPress={() => router.replace("/")}
+            onPress={() => router.replace("/explore")}
             disabled={anyLoading}
             activeOpacity={0.6}
             style={styles.exploreLink}

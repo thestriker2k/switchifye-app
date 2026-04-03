@@ -58,8 +58,11 @@ export default function RootLayout() {
     if (session === undefined) return; // still loading
 
     const onLoginScreen = segments[0] === "login";
+    const onExploreScreen = segments[0] === "explore";
 
-    if (session && onLoginScreen) {
+    if (!session && !onLoginScreen && !onExploreScreen) {
+      router.replace("/login");
+    } else if (session && onLoginScreen) {
       router.replace("/");
     }
   }, [session, segments]);
@@ -80,6 +83,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
         <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
+        <Stack.Screen name="explore" />
         <Stack.Screen name="index" />
         <Stack.Screen name="settings" />
       </Stack>

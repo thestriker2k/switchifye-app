@@ -8,7 +8,6 @@ import {
   AppState,
   AppStateStatus,
   Image,
-  ScrollView,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
@@ -16,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../lib/supabase";
 import { buildInjectSessionJS } from "../lib/session";
 
@@ -62,59 +60,6 @@ export const webViewRef = { current: null as any };
 
 type NavTab = "dashboard" | "contacts";
 
-function LandingScreen() {
-  const router = useRouter();
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.landingContainer}>
-        <Image
-          source={require("../assets/logo.png")}
-          style={styles.landingLogo}
-          resizeMode="contain"
-        />
-
-        <Text style={styles.landingTitle}>Your Safety, Simplified</Text>
-        <Text style={styles.landingBody}>
-          Switchifye is a smart safety switch that automatically alerts your
-          emergency contacts if you don't check in on time. Whether you're
-          traveling solo, living alone, or working in remote areas — Switchifye
-          has your back.
-        </Text>
-
-        <View style={styles.landingFeatures}>
-          <Text style={styles.landingFeature}>
-            Set custom check-in timers tailored to your routine
-          </Text>
-          <Text style={styles.landingFeature}>
-            Add trusted emergency contacts who get notified instantly
-          </Text>
-          <Text style={styles.landingFeature}>
-            Stay protected with automatic alerts — no action needed if you're safe
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => router.replace("/login")}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={["#4A9FF5", "#3EEBBE"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.landingCta}
-          >
-            <Text style={styles.landingCtaText}>Create Free Account</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.landingDisclaimer}>
-          No credit card required · Free forever on the basic plan
-        </Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
 export default function HomeScreen() {
   const router = useRouter();
   const localWebViewRef = useRef<any>(null);
@@ -122,7 +67,6 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
   const [currentUrl, setCurrentUrl] = useState(DASHBOARD_URL);
   const [showNav, setShowNav] = useState(false);
-  const [session, setSession] = useState<any>(undefined);
 
   const pushTokenRef = useRef<string | null>(null);
   const pushTokenSaved = useRef(false);
@@ -166,17 +110,6 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
-    return () => { listener.subscription.unsubscribe(); };
-  }, []);
-
-  useEffect(() => {
-    if (!session) return;
     registerForPushNotifications().then((token) => {
       if (token) {
         pushTokenRef.current = token;
@@ -212,9 +145,7 @@ export default function HomeScreen() {
       appStateSub.remove();
       notifSub.remove();
     };
-  }, [session]);
-
-  if (!session) return <LandingScreen />;
+  }, []);
 
   const navigateTo = (tab: NavTab) => {
     const url = tab === "dashboard" ? DASHBOARD_URL : CONTACTS_URL;
@@ -356,58 +287,5 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-  },
-  landingContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 40,
-  },
-  landingLogo: {
-    width: 160,
-    height: 40,
-    alignSelf: "center",
-    marginBottom: 36,
-  },
-  landingTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 16,
-    letterSpacing: -0.5,
-  },
-  landingBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  landingFeatures: {
-    gap: 12,
-    marginBottom: 36,
-  },
-  landingFeature: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "rgba(255,255,255,0.6)",
-    textAlign: "center",
-  },
-  landingCta: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  landingCtaText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  landingDisclaimer: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
-    textAlign: "center",
-    marginTop: 12,
   },
 });
