@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -7,8 +7,23 @@ import { supabase } from "../lib/supabase";
 import { handleAuthCallback } from "../lib/auth-handler";
 import type { Session } from "@supabase/supabase-js";
 
+type GuestContextType = {
+  isGuest: boolean;
+  setIsGuest: (value: boolean) => void;
+};
+
+const GuestContext = createContext<GuestContextType>({
+  isGuest: false,
+  setIsGuest: () => {},
+});
+
+export function useGuest() {
+  return useContext(GuestContext);
+}
+
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [isGuest, setIsGuest] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
@@ -60,12 +75,13 @@ export default function RootLayout() {
     const onLoginScreen = segments[0] === "login";
     const onExploreScreen = segments[0] === "explore";
 
-    if (!session && !onLoginScreen && !onExploreScreen) {
+    if (!session && !isGuest && !onLoginScreen && !onExploreScreen) {
       router.replace("/login");
     } else if (session && onLoginScreen) {
+      setIsGuest(false);
       router.replace("/");
     }
-  }, [session, segments]);
+  }, [session, isGuest, segments]);
 
   // Show loading spinner while checking auth
   if (session === undefined) {
@@ -78,7 +94,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <GuestContext.Provider value={{ isGuest, setIsGuest }}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" />
@@ -87,7 +103,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="settings" />
       </Stack>
-    </>
+    </GuestContext.Provider>
   );
 }
 

@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,23 +27,28 @@ import {
 const FEATURES: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: string }[] = [
   {
     icon: 'shield-checkmark',
-    title: 'Up to 5 Switches',
-    desc: 'Create up to 5 safety switches',
+    title: 'Unlimited Switches',
+    desc: 'Create as many safety switches as you need',
   },
   {
     icon: 'people',
-    title: 'Up to 10 Contacts',
-    desc: 'Add up to 10 contacts per switch',
+    title: 'Unlimited Contacts',
+    desc: 'Add all the contacts you want to notify',
   },
   {
     icon: 'time-outline',
-    title: 'Flexible Check-In Times',
-    desc: 'Choose a check-in interval that works for you',
+    title: 'All Check-In Intervals',
+    desc: 'Choose any check-in interval that works for you',
   },
   {
-    icon: 'chatbubble-ellipses',
-    title: 'Custom Messages',
-    desc: 'Write personalized messages for each recipient. Include important information, instructions, or heartfelt words.',
+    icon: 'mail-outline',
+    title: 'Email Notifications',
+    desc: 'Get notified when switches are triggered',
+  },
+  {
+    icon: 'flash',
+    title: 'Priority Support',
+    desc: 'Get help when you need it',
   },
 ];
 
@@ -63,7 +69,18 @@ export default function PaywallScreen() {
   };
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
+    const cleanup = addPurchaseListeners({
+      onSuccess: () => {
+        setPurchasing(false);
+        setRestoring(false);
+        router.replace('/');
+      },
+      onError: (msg) => {
+        setPurchasing(false);
+        setRestoring(false);
+        setError(msg);
+      },
+    });
 
     async function init() {
       try {
@@ -90,19 +107,6 @@ export default function PaywallScreen() {
           }
         }
 
-        cleanup = addPurchaseListeners({
-          onSuccess: () => {
-            setPurchasing(false);
-            setRestoring(false);
-            router.replace('/');
-          },
-          onError: (msg) => {
-            setPurchasing(false);
-            setRestoring(false);
-            setError(msg);
-          },
-        });
-
         // Try to fetch product for localized price — silently fall back to $11.99
         try {
           const sub = await fetchAnnualProduct();
@@ -120,7 +124,7 @@ export default function PaywallScreen() {
     init();
 
     return () => {
-      cleanup?.();
+      cleanup();
       disconnectFromStore();
     };
   }, []);
@@ -133,11 +137,26 @@ export default function PaywallScreen() {
     try {
       await buyAnnual(product ?? undefined);
     } catch (err: any) {
-      setPurchasing(false);
       const msg = (err.message || err.code || '').toLowerCase();
       if (msg.includes('already owned') || msg.includes('e_already_owned')) {
-        setError('You already have an active subscription. Tap Restore Purchase below to activate it.');
+        console.log('[IAP] Item already owned — auto-restoring...');
+        setPurchasing(false);
+        setRestoring(true);
+        try {
+          const found = await restorePurchases();
+          if (found) {
+            setRestoring(false);
+            router.replace('/');
+          } else {
+            setRestoring(false);
+            setError('You already have a subscription. Please tap Restore Purchase to activate it.');
+          }
+        } catch (restoreErr: any) {
+          setRestoring(false);
+          setError(restoreErr.message || 'Restore failed');
+        }
       } else {
+        setPurchasing(false);
         setError(err.message || 'Something went wrong');
       }
     }
@@ -148,13 +167,16 @@ export default function PaywallScreen() {
     setRestoring(true);
     try {
       const found = await restorePurchases();
-      setRestoring(false);
-      if (!found) {
+      if (found) {
+        setRestoring(false);
+        router.replace('/');
+      } else {
         setError('No previous subscription found.');
+        setRestoring(false);
       }
     } catch (err: any) {
-      setRestoring(false);
       setError(err.message || 'Restore failed');
+      setRestoring(false);
     }
   };
 
@@ -223,7 +245,7 @@ export default function PaywallScreen() {
           </LinearGradient>
           <Text style={styles.heroTitle}>Upgrade to Premium</Text>
           <Text style={styles.heroSubtitle}>
-            Get the most out of Switchifye with more switches, contacts, and premium features.
+            Everything Switchifye offers, all updates, one simple annual plan.
           </Text>
         </View>
 
@@ -307,6 +329,16 @@ export default function PaywallScreen() {
           prior to the end of the current period. You can manage and cancel your subscriptions
           by going to your account settings on the App Store after purchase.
         </Text>
+
+        <View style={styles.legalLinks}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://switchifye.com/terms')}>
+            <Text style={styles.legalLink}>Terms of Service</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalSeparator}>|</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('https://switchifye.com/privacy')}>
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -488,5 +520,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
     marginTop: 4,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  legalLink: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.25)',
   },
 });

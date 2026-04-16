@@ -8,6 +8,8 @@ import {
   AppState,
   AppStateStatus,
   Image,
+  ScrollView,
+  Alert,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
@@ -15,8 +17,10 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../lib/supabase";
 import { buildInjectSessionJS } from "../lib/session";
+import { useGuest } from "./_layout";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -62,6 +66,7 @@ type NavTab = "dashboard" | "contacts";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { isGuest, setIsGuest } = useGuest();
   const localWebViewRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
@@ -155,6 +160,171 @@ export default function HomeScreen() {
       `window.location.href = '${url}'; true;`
     );
   };
+
+  const [guestTab, setGuestTab] = useState<NavTab>("dashboard");
+
+  const goToLogin = () => {
+    setIsGuest(false);
+    router.replace("/login");
+  };
+
+  const handleNewSwitch = () => {
+    Alert.alert(
+      "Account Required",
+      "Create a free account to make your first switch",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Up", onPress: goToLogin },
+      ],
+    );
+  };
+
+  const nowFormatted = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header — same as authenticated */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => setGuestTab("dashboard")}
+            activeOpacity={0.8}
+            style={styles.logoWrap}
+          >
+            <Image
+              source={require("../assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => setGuestTab("contacts")}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="people-outline"
+              size={20}
+              color={guestTab === "contacts" ? "#3EEBBE" : "rgba(255,255,255,0.5)"}
+            />
+            <Text style={[
+              styles.navButtonText,
+              guestTab === "contacts" && styles.navButtonTextActive,
+            ]}>
+              Contacts
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push("/settings")}
+            style={styles.settingsButton}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
+        </View>
+
+        {guestTab === "dashboard" ? (
+          <ScrollView style={g.scroll} contentContainerStyle={g.scrollContent}>
+            {/* Title */}
+            <Text style={g.pageTitle}>Dashboard</Text>
+            <Text style={g.pageSubtitle}>Manage your switches and check-ins</Text>
+
+            {/* New Switch button */}
+            <TouchableOpacity
+              style={g.newSwitchBtn}
+              onPress={handleNewSwitch}
+              activeOpacity={0.8}
+            >
+              <Text style={g.newSwitchText}>+ New Switch</Text>
+            </TouchableOpacity>
+
+            {/* 2x2 stat grid */}
+            <View style={g.statGrid}>
+              <View style={g.statCard}>
+                <View style={g.statIconWrap}>
+                  <Ionicons name="flash" size={16} color="#14b8a6" />
+                </View>
+                <Text style={g.statLabel}>Active</Text>
+                <Text style={g.statValue}>0</Text>
+              </View>
+              <View style={g.statCard}>
+                <View style={g.statIconWrap}>
+                  <Ionicons name="close-circle-outline" size={16} color="#9ca3af" />
+                </View>
+                <Text style={g.statLabel}>Inactive</Text>
+                <Text style={g.statValue}>0</Text>
+              </View>
+              <View style={g.statCard}>
+                <View style={g.statIconWrap}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color="#22c55e" />
+                </View>
+                <Text style={g.statLabel}>Completed</Text>
+                <Text style={g.statValue}>0</Text>
+              </View>
+              <View style={g.statCard}>
+                <View style={g.statIconWrap}>
+                  <Ionicons name="time-outline" size={16} color="#6b7280" />
+                </View>
+                <Text style={g.statLabel}>Last Check-in</Text>
+                <Text style={[g.statValue, { fontSize: 13 }]}>{nowFormatted}</Text>
+                <Text style={g.statTz}>{tzName}</Text>
+              </View>
+            </View>
+
+            {/* Active Switches section */}
+            <View style={g.sectionHeader}>
+              <Ionicons name="flash" size={16} color="#14b8a6" />
+              <Text style={g.sectionTitle}>Active Switches</Text>
+              <View style={g.badge}>
+                <Text style={g.badgeText}>0</Text>
+              </View>
+            </View>
+
+            {/* Empty state */}
+            <View style={g.emptyCard}>
+              <Ionicons name="shield-outline" size={40} color="rgba(255,255,255,0.15)" />
+              <Text style={g.emptyText}>Create an account to make your first switch</Text>
+              <TouchableOpacity onPress={goToLogin} activeOpacity={0.8}>
+                <LinearGradient
+                  colors={["#4A9FF5", "#3EEBBE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={g.ctaBtn}
+                >
+                  <Text style={g.ctaText}>Create Free Account</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        ) : (
+          /* Contacts tab */
+          <View style={g.contactsEmpty}>
+            <Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.15)" />
+            <Text style={g.emptyText}>Create an account to add contacts</Text>
+            <TouchableOpacity onPress={goToLogin} activeOpacity={0.8}>
+              <LinearGradient
+                colors={["#4A9FF5", "#3EEBBE"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={g.ctaBtn}
+              >
+                <Text style={g.ctaText}>Create Free Account</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -287,5 +457,137 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+  },
+});
+
+const g = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+  },
+  newSwitchBtn: {
+    backgroundColor: "#111827",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  newSwitchText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  statGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    width: "48.5%" as any,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  statIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  statTz: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  badge: {
+    backgroundColor: "#e5e7eb",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  emptyCard: {
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.08)",
+    borderStyle: "dashed",
+    borderRadius: 16,
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    backgroundColor: "#fff",
+  },
+  emptyText: {
+    fontSize: 15,
+    color: "#6b7280",
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  ctaBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 36,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  ctaText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  contactsEmpty: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
   },
 });

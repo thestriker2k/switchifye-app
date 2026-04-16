@@ -10,23 +10,28 @@ import {
   Linking,
   ActivityIndicator,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { webViewRef } from './index';
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { useGuest } from './_layout';
 
 const APP_URL = 'https://app.switchifye.com';
 
 const PLAN_NAMES: Record<string, string> = {
   free: 'Free',
   starter: 'Premium',
+  premium: 'Premium',
   pro: 'Pro',
   enterprise: 'Enterprise',
 };
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { isGuest, setIsGuest } = useGuest();
   const navigatingRef = useRef(false);
   const [email, setEmail] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(true);
@@ -37,6 +42,10 @@ export default function SettingsScreen() {
   const [planId, setPlanId] = useState('free');
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [nameLoading, setNameLoading] = useState(false);
+  const [nameDirty, setNameDirty] = useState(false);
 
   const fetchUserData = useCallback(async () => {
     try {
@@ -48,7 +57,7 @@ export default function SettingsScreen() {
 
       // Fetch reminder_enabled from user_settings
       const settingsRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/user_settings?user_id=eq.${session.user.id}&select=reminder_enabled`,
+        `${SUPABASE_URL}/rest/v1/user_settings?user_id=eq.${session.user.id}&select=reminder_enabled,first_name,last_name`,
         {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
@@ -60,6 +69,10 @@ export default function SettingsScreen() {
         const rows = await settingsRes.json();
         if (rows.length > 0 && rows[0].reminder_enabled !== undefined) {
           setReminderEnabled(rows[0].reminder_enabled);
+        }
+        if (rows.length > 0) {
+          setFirstName(rows[0].first_name ?? '');
+          setLastName(rows[0].last_name ?? '');
         }
       }
 
@@ -127,6 +140,44 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Failed to update reminder setting.');
     } finally {
       setReminderLoading(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    setNameLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (!session) throw new Error('Not authenticated');
+
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/user_settings?user_id=eq.${session.user.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            first_name: firstName.trim() || null,
+            last_name: lastName.trim() || null,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to update: ${res.status}`);
+      }
+
+      setNameDirty(false);
+      Alert.alert('Saved', 'Your name has been updated.');
+    } catch (err: any) {
+      console.error('Failed to update name:', err);
+      Alert.alert('Error', 'Failed to update name.');
+    } finally {
+      setNameLoading(false);
     }
   };
 
@@ -213,6 +264,40 @@ export default function SettingsScreen() {
 
   const isPaid = planId !== 'free';
 
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={styles.guestContainer}>
+          <Ionicons name="lock-closed-outline" size={48} color="#9ca3af" />
+          <Text style={styles.guestTitle}>Sign up to access settings</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setIsGuest(false);
+              router.replace('/login');
+            }}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#4A9FF5', '#3EEBBE']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.guestCta}
+            >
+              <Text style={styles.guestCtaText}>Create Free Account</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Native header */}
@@ -237,6 +322,49 @@ export default function SettingsScreen() {
                 <Text style={styles.rowValue}>{email ?? '—'}</Text>
               )}
             </View>
+            <View style={styles.separator} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>First Name</Text>
+              <TextInput
+                style={styles.nameInput}
+                value={firstName}
+                onChangeText={(text) => { setFirstName(text); setNameDirty(true); }}
+                placeholder="Optional"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+            <View style={styles.separator} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Last Name</Text>
+              <TextInput
+                style={styles.nameInput}
+                value={lastName}
+                onChangeText={(text) => { setLastName(text); setNameDirty(true); }}
+                placeholder="Optional"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+            {nameDirty && (
+              <>
+                <View style={styles.separator} />
+                <TouchableOpacity
+                  style={styles.saveNameButton}
+                  onPress={handleSaveName}
+                  disabled={nameLoading}
+                  activeOpacity={0.7}
+                >
+                  {nameLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveNameText}>Save Name</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
@@ -464,6 +592,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#3EEBBE',
   },
+  nameInput: {
+    fontSize: 15,
+    color: '#111827',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 12,
+    paddingVertical: 0,
+  },
+  saveNameButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  saveNameText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#4A9FF5',
+  },
   destructiveLabel: {
     fontSize: 17,
     color: '#dc2626',
@@ -474,5 +620,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 24,
     marginBottom: 32,
+  },
+  guestContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  guestTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  guestCta: {
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  guestCtaText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

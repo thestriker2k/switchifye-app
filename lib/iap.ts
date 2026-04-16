@@ -93,6 +93,7 @@ export function addPurchaseListeners({ onSuccess, onError }: ListenerCallbacks):
 
   const errorSub: EventSubscription = purchaseErrorListener((error: PurchaseError) => {
     if (error.code === ErrorCode.UserCancelled) return;
+    if ((error.code as string) === 'E_ALREADY_OWNED' || error.message?.toLowerCase().includes('already owned')) return;
     onError(error.message || 'Purchase failed');
   });
 
@@ -138,9 +139,25 @@ async function restorePurchasesInner(): Promise<boolean> {
 // ── Server validation (private) ────────────────────────────────────────
 
 async function validateReceiptOnServer(purchase: Purchase): Promise<void> {
+  // Try cached session first
+  let token: string | undefined;
   const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
+  token = sessionData.session?.access_token;
+
+  // If no token, force a refresh
+  if (!token) {
+    const { data: refreshData } = await supabase.auth.refreshSession();
+    token = refreshData.session?.access_token;
+  }
+
   if (!token) throw new Error('Not authenticated');
+
+  const body = JSON.stringify({
+    platform: Platform.OS,
+    productId: purchase.productId,
+    transactionId: (purchase as any).transactionId ?? purchase.id,
+    receipt: purchase.purchaseToken ?? '',
+  });
 
   const res = await fetch(VALIDATE_URL, {
     method: 'POST',
@@ -148,13 +165,31 @@ async function validateReceiptOnServer(purchase: Purchase): Promise<void> {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      platform: Platform.OS,
-      productId: purchase.productId,
-      transactionId: (purchase as any).transactionId ?? purchase.id,
-      receipt: purchase.purchaseToken ?? '',
-    }),
+    body,
   });
+
+  // If 401, token was stale — refresh and retry once
+  if (res.status === 401) {
+    console.log('[IAP] Token expired, refreshing and retrying...');
+    const { data: refreshData } = await supabase.auth.refreshSession();
+    const newToken = refreshData.session?.access_token;
+    if (!newToken) throw new Error('Not authenticated');
+
+    const retryRes = await fetch(VALIDATE_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${newToken}`,
+        'Content-Type': 'application/json',
+      },
+      body,
+    });
+
+    const retryData = await retryRes.json();
+    if (!retryRes.ok || !retryData.valid) {
+      throw new Error(retryData.error || 'Receipt validation failed');
+    }
+    return;
+  }
 
   const data = await res.json();
   if (!res.ok || !data.valid) {
