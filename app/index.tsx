@@ -32,6 +32,7 @@ Notifications.setNotificationHandler({
 
 const DASHBOARD_URL = "https://app.switchifye.com/dashboard";
 const CONTACTS_URL = "https://app.switchifye.com/dashboard/contacts";
+const FILES_URL = "https://app.switchifye.com/dashboard/files";
 
 const HIDE_HEADER_JS = `
   (function() {
@@ -62,7 +63,7 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 export const webViewRef = { current: null as any };
 
-type NavTab = "dashboard" | "contacts";
+type NavTab = "dashboard" | "contacts" | "files";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -153,7 +154,7 @@ export default function HomeScreen() {
   }, []);
 
   const navigateTo = (tab: NavTab) => {
-    const url = tab === "dashboard" ? DASHBOARD_URL : CONTACTS_URL;
+    const url = tab === "dashboard" ? DASHBOARD_URL : tab === "files" ? FILES_URL : CONTACTS_URL;
     setActiveTab(tab);
     setCurrentUrl(url);
     localWebViewRef.current?.injectJavaScript(
@@ -344,25 +345,35 @@ export default function HomeScreen() {
           />
         </TouchableOpacity>
 
-        {/* Contacts nav button */}
+        {/* Center nav group — text-only Contacts / Files pair */}
         {showNav && (
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => navigateTo("contacts")}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={activeTab === "contacts" ? "#3EEBBE" : "rgba(255,255,255,0.5)"}
-            />
-            <Text style={[
-              styles.navButtonText,
-              activeTab === "contacts" && styles.navButtonTextActive
-            ]}>
-              Contacts
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.navGroup}>
+            <TouchableOpacity
+              style={styles.navButton}
+              onPress={() => navigateTo("contacts")}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.navButtonText,
+                activeTab === "contacts" && styles.navButtonTextActive
+              ]}>
+                Contacts
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navButton}
+              onPress={() => navigateTo("files")}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.navButtonText,
+                activeTab === "files" && styles.navButtonTextActive
+              ]}>
+                Files
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Settings */}
@@ -390,7 +401,7 @@ export default function HomeScreen() {
         sharedCookiesEnabled={true}
         domStorageEnabled={true}
         javaScriptEnabled={true}
-        userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+        userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Switchifye/1.0"
         onLoadEnd={async () => {
           localWebViewRef.current?.injectJavaScript(HIDE_HEADER_JS);
 
@@ -434,6 +445,11 @@ const styles = StyleSheet.create({
     width: 110,
     height: 28,
   },
+  navGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+  },
   navButton: {
     height: 52,
     flexDirection: "row",
@@ -442,7 +458,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   navButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
     color: "rgba(255,255,255,0.5)",
   },

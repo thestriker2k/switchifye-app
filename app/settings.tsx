@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Constants from 'expo-constants';
 import { webViewRef } from './index';
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 import { useGuest } from './_layout';
@@ -483,7 +484,9 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={styles.version}>Switchifye v1.0.1</Text>
+        <Text style={styles.version}>
+          Switchifye v{Constants.expoConfig?.version ?? '1.0.4'}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

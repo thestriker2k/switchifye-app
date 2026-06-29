@@ -36,6 +36,11 @@ const FEATURES: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: str
     desc: 'Add all the contacts you want to notify',
   },
   {
+    icon: 'document-text-outline',
+    title: 'Attach Files',
+    desc: 'Include files in your switches',
+  },
+  {
     icon: 'time-outline',
     title: 'All Check-In Intervals',
     desc: 'Choose any check-in interval that works for you',
