@@ -10,16 +10,19 @@ import {
   Image,
   ScrollView,
   Alert,
+  Modal,
+  Pressable,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
+import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../lib/supabase";
-import { buildInjectSessionJS } from "../lib/session";
+import { buildInjectSessionJS, getAccessToken } from "../lib/session";
 import { useGuest } from "./_layout";
 
 Notifications.setNotificationHandler({
@@ -33,6 +36,12 @@ Notifications.setNotificationHandler({
 const DASHBOARD_URL = "https://app.switchifye.com/dashboard";
 const CONTACTS_URL = "https://app.switchifye.com/dashboard/contacts";
 const FILES_URL = "https://app.switchifye.com/dashboard/files";
+const MESSAGES_URL = "https://app.switchifye.com/dashboard/messages";
+
+// Everything the WebView is allowed to navigate to in-place. Anything else —
+// notably the signed Supabase Storage download links on the Messages page —
+// gets handed off to the system browser instead (see onShouldStartLoadWithRequest).
+const APP_HOST = "app.switchifye.com";
 
 const HIDE_HEADER_JS = `
   (function() {
@@ -63,7 +72,32 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 export const webViewRef = { current: null as any };
 
-type NavTab = "dashboard" | "contacts" | "files";
+type NavTab = "dashboard" | "contacts" | "files" | "messages";
+
+const NAV_URLS: Record<NavTab, string> = {
+  dashboard: DASHBOARD_URL,
+  contacts: CONTACTS_URL,
+  files: FILES_URL,
+  messages: MESSAGES_URL,
+};
+
+// A menu row is EITHER a web destination (loaded in the WebView via navigateTo)
+// OR a native action — never a bare URL. This union is a compliance guard, not
+// a style choice:
+//
+// Settings must stay NATIVE (router.push("/settings") → native settings →
+// native /paywall → StoreKit IAP). Pointing it at a web /dashboard/settings
+// route would load Stripe billing surfaces inside the WebView — precisely the
+// App Store 3.1.1 violation the native screen exists to prevent.
+//
+// Because a row can only carry `tab: NavTab` (a key into NAV_URLS) or an
+// `onPress`, there is no way to express "Settings → some URL" here. Keep it
+// that way: do NOT add a `url` field to this type.
+type MenuItem = {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+} & ({ tab: NavTab; onPress?: never } | { onPress: () => void; tab?: never });
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -73,6 +107,15 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<NavTab>("dashboard");
   const [currentUrl, setCurrentUrl] = useState(DASHBOARD_URL);
   const [showNav, setShowNav] = useState(false);
+
+  // Unread Messages count for the in-app header badge.
+  //
+  // This is IN-APP ONLY and deliberately has nothing to do with the OS app-icon
+  // badge or expo-notifications above — that machinery belongs to the check-in
+  // reminder system and stays separate. Never route this count through
+  // setBadgeCountAsync.
+  const [messageCount, setMessageCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const pushTokenRef = useRef<string | null>(null);
   const pushTokenSaved = useRef(false);
@@ -111,6 +154,25 @@ export default function HomeScreen() {
     }
   };
 
+  // Same call the web header makes. Fails silent in every direction: no token,
+  // failed request, or malformed body leaves the count at 0, which renders no
+  // badge at all. It must never throw or block the header.
+  const refreshMessageCount = async () => {
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) return;
+
+      const res = await fetch(
+        "https://app.switchifye.com/api/messages?count=1",
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      const json = await res.json();
+      if (typeof json?.count === "number") setMessageCount(json.count);
+    } catch {
+      // no badge
+    }
+  };
+
   const handleWebViewMessage = (_event: any) => {
     // Reserved for future WebView → native messaging
   };
@@ -123,10 +185,22 @@ export default function HomeScreen() {
       }
     });
 
+    // Baseline in-app badge fetch on mount.
+    refreshMessageCount();
+
     // Refresh dashboard and clear badge when app comes to foreground
     const appStateSub = AppState.addEventListener("change", (nextState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextState === "active") {
         Notifications.setBadgeCountAsync(0);
+
+        // In-app Messages badge — piggybacks on the listener that already
+        // exists. Unrelated to setBadgeCountAsync above, which is the OS badge.
+        refreshMessageCount();
+
+        // The WebView reloads just below; a menu left floating over a reloading
+        // page is a bad state to come back to.
+        setMenuOpen(false);
+
         localWebViewRef.current?.injectJavaScript(`
           (function() {
             if (window.location.href.indexOf('/dashboard') !== -1
@@ -154,12 +228,35 @@ export default function HomeScreen() {
   }, []);
 
   const navigateTo = (tab: NavTab) => {
-    const url = tab === "dashboard" ? DASHBOARD_URL : tab === "files" ? FILES_URL : CONTACTS_URL;
+    const url = NAV_URLS[tab];
     setActiveTab(tab);
     setCurrentUrl(url);
     localWebViewRef.current?.injectJavaScript(
       `window.location.href = '${url}'; true;`
     );
+  };
+
+  // Dashboard / Contacts / Files are web routes → WebView.
+  // Settings is native → router.push. See the MenuItem type for why.
+  const menuItems: MenuItem[] = [
+    { key: "dashboard", label: "Dashboard", icon: "home-outline", tab: "dashboard" },
+    { key: "contacts", label: "Contacts", icon: "people-outline", tab: "contacts" },
+    { key: "files", label: "Files", icon: "document-text-outline", tab: "files" },
+    {
+      key: "settings",
+      label: "Settings",
+      icon: "settings-outline",
+      onPress: () => router.push("/settings"),
+    },
+  ];
+
+  const handleMenuPress = (item: MenuItem) => {
+    if (item.tab) {
+      navigateTo(item.tab);
+    } else {
+      item.onPress();
+    }
+    setMenuOpen(false);
   };
 
   const [guestTab, setGuestTab] = useState<NavTab>("dashboard");
@@ -345,51 +442,103 @@ export default function HomeScreen() {
           />
         </TouchableOpacity>
 
-        {/* Center nav group — text-only Contacts / Files pair */}
-        {showNav && (
-          <View style={styles.navGroup}>
+        {/* Right cluster: Messages ✉️ then the hamburger ☰. Contacts, Files,
+            Dashboard and Settings all live inside the menu now. */}
+        {showNav ? (
+          <View style={styles.rightGroup}>
             <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateTo("contacts")}
+              onPress={() => navigateTo("messages")}
+              style={styles.iconButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               activeOpacity={0.7}
+              accessibilityLabel="Messages"
             >
-              <Text style={[
-                styles.navButtonText,
-                activeTab === "contacts" && styles.navButtonTextActive
-              ]}>
-                Contacts
-              </Text>
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={activeTab === "messages" ? "#3EEBBE" : "rgba(255,255,255,0.5)"}
+              />
+
+              {/* In-app badge only. Never the OS app-icon badge. */}
+              {messageCount > 0 && (
+                <LinearGradient
+                  colors={["#4A9FF5", "#3EEBBE"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.countBadge}
+                >
+                  <Text style={styles.countBadgeText}>
+                    {messageCount > 9 ? "9+" : messageCount}
+                  </Text>
+                </LinearGradient>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.navButton}
-              onPress={() => navigateTo("files")}
+              onPress={() => setMenuOpen((open) => !open)}
+              style={styles.iconButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               activeOpacity={0.7}
+              accessibilityLabel={menuOpen ? "Close menu" : "Open menu"}
             >
-              <Text style={[
-                styles.navButtonText,
-                activeTab === "files" && styles.navButtonTextActive
-              ]}>
-                Files
-              </Text>
+              <Ionicons
+                name={menuOpen ? "close-outline" : "menu-outline"}
+                size={20}
+                color="rgba(255,255,255,0.5)"
+              />
             </TouchableOpacity>
           </View>
-        )}
-
-        {/* Settings */}
-        {showNav ? (
-          <TouchableOpacity
-            onPress={() => router.push("/settings")}
-            style={styles.settingsButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="settings-outline" size={20} color="rgba(255,255,255,0.5)" />
-          </TouchableOpacity>
         ) : (
-          <View style={{ width: 36 }} />
+          // Spacer keeps the logo from re-centering when the nav is hidden.
+          // Still balancing TWO icons (envelope + hamburger).
+          <View style={{ width: 72 }} />
         )}
 
       </View>
+
+      {/* Nav menu.
+          <Modal> and not an absolutely-positioned overlay: the WebView is a
+          native view and will paint over JS-layer siblings whatever their
+          zIndex. Modal renders in its own native window, above everything. */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        {/* Backdrop — tap anywhere outside the panel to dismiss. */}
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          {/* Stop taps on the panel itself from bubbling to the backdrop. */}
+          <Pressable style={styles.menuPanel} onPress={() => {}}>
+            {menuItems.map((item) => {
+              // Settings has no tab, so it never highlights — correct: it isn't
+              // a WebView destination and `activeTab` doesn't track it.
+              const active = item.tab !== undefined && item.tab === activeTab;
+
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => handleMenuPress(item)}
+                  style={styles.menuRow}
+                  activeOpacity={0.7}
+                  accessibilityLabel={item.label}
+                >
+                  <Ionicons
+                    name={item.icon}
+                    size={18}
+                    color={active ? "#3EEBBE" : "rgba(255,255,255,0.5)"}
+                  />
+                  <Text
+                    style={[styles.menuRowText, active && styles.menuRowTextActive]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <WebView
         ref={(ref) => {
@@ -414,9 +563,38 @@ export default function HomeScreen() {
 
           savePushToken();
         }}
+        onShouldStartLoadWithRequest={(request) => {
+          const url = request.url ?? "";
+
+          // Anything on our own host (plus about:blank / data: bootstraps) loads
+          // in the WebView exactly as before. Normal navigation is untouched.
+          if (
+            !/^https?:\/\//i.test(url) ||
+            url.includes(APP_HOST)
+          ) {
+            return true;
+          }
+
+          // Everything else is off-host — in practice the signed Supabase
+          // Storage links on the Messages page, which respond with
+          // Content-Disposition: attachment. WKWebView does nothing visible with
+          // those, so hand them to the system browser, which can present and
+          // save the file. Cancel the in-WebView load.
+          WebBrowser.openBrowserAsync(url).catch(() => {
+            // If the browser can't open it, we've already cancelled the WebView
+            // load — nothing further to do but not crash.
+          });
+          return false;
+        }}
         onNavigationStateChange={(navState) => {
           const url = navState.url ?? '';
           setShowNav(url.includes('/dashboard'));
+
+          // Keep the badge honest after the user acts on the Messages page
+          // (opening a message auto-reads it, which decrements the count).
+          if (url.includes("/dashboard/messages")) {
+            refreshMessageCount();
+          }
         }}
         onMessage={handleWebViewMessage}
       />
@@ -445,11 +623,9 @@ const styles = StyleSheet.create({
     width: 110,
     height: 28,
   },
-  navGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 18,
-  },
+  // NOTE: navButton / navButtonText / navButtonTextActive / settingsButton are
+  // still used by the GUEST header below — they are not dead. Only the
+  // authenticated header's center nav group was removed.
   navButton: {
     height: 52,
     flexDirection: "row",
@@ -470,6 +646,72 @@ const styles = StyleSheet.create({
     width: 36,
     alignItems: "flex-end",
     justifyContent: "center",
+  },
+  rightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  // 44x44 tap target (the icon is only 20pt), so the envelope and the gear
+  // aren't fat-finger-adjacent. hitSlop on each widens it further.
+  iconButton: {
+    height: 44,
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBadge: {
+    position: "absolute",
+    top: 4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  // Anchored under the header, hard right — reads as dropping out of the
+  // hamburger. Top offset clears the status bar + the 52pt header.
+  menuPanel: {
+    position: "absolute",
+    top: 100,
+    right: 12,
+    minWidth: 190,
+    backgroundColor: "#141B2D",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  menuRowText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.75)",
+  },
+  menuRowTextActive: {
+    color: "#3EEBBE",
   },
   webview: {
     flex: 1,
