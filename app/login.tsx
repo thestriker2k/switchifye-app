@@ -23,6 +23,8 @@ import { useGuest } from "./_layout";
 const REVIEW_EMAIL = "review@switchifye.com";
 const REVIEW_PASSWORD = process.env.EXPO_PUBLIC_REVIEW_PASSWORD ?? "";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+
 function GoogleLogo() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -89,6 +91,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { setIsGuest } = useGuest();
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -186,7 +189,10 @@ export default function LoginScreen() {
   };
 
   const handleEmailSignIn = async () => {
-    if (!email.trim()) return;
+    if (!emailValid) {
+      setEmailTouched(true);
+      return;
+    }
     setEmailLoading(true);
     setMsg(null);
 
@@ -224,6 +230,7 @@ export default function LoginScreen() {
     }
   };
 
+  const emailValid = EMAIL_RE.test(email.trim());
   const anyLoading = appleLoading || googleLoading || emailLoading;
 
   return (
@@ -320,11 +327,22 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  setEmailTouched(false);
+                }}
+                onBlur={() => setEmailTouched(true)}
                 editable={!anyLoading}
                 returnKeyType="go"
                 onSubmitEditing={handleEmailSignIn}
               />
+              {emailTouched && email.trim().length > 0 && !emailValid && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>
+                    Enter a valid email address
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 onPress={handleEmailSignIn}
                 disabled={anyLoading || !email.trim()}
