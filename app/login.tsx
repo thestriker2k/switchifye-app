@@ -259,21 +259,23 @@ export default function LoginScreen() {
         {/* Auth buttons */}
         <View style={styles.authSection}>
           {/* Sign in with Apple */}
-          <TouchableOpacity
-            style={styles.authButton}
-            onPress={handleAppleSignIn}
-            disabled={anyLoading}
-            activeOpacity={0.8}
-          >
-            {appleLoading ? (
-              <ActivityIndicator size="small" color="#000" />
-            ) : (
-              <>
-                <AppleLogo color="#000" />
-                <Text style={styles.authButtonText}>Sign in with Apple</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {Platform.OS !== "android" && (
+            <TouchableOpacity
+              style={styles.authButton}
+              onPress={handleAppleSignIn}
+              disabled={anyLoading}
+              activeOpacity={0.8}
+            >
+              {appleLoading ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <>
+                  <AppleLogo color="#000" />
+                  <Text style={styles.authButtonText}>Sign in with Apple</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Sign in with Google */}
           <TouchableOpacity
