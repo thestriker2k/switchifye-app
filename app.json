@@ -24,6 +24,15 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+    "android": {
+      "package": "com.switchifye.app",
+      "newArchEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
     "plugins": [
       [
         "expo-notifications",
