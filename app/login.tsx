@@ -294,6 +294,24 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          {Platform.OS === "android" && (
+            <TouchableOpacity
+              style={styles.authButton}
+              onPress={handleAppleSignIn}
+              disabled={anyLoading}
+              activeOpacity={0.8}
+            >
+              {appleLoading ? (
+                <ActivityIndicator size="small" color="#000" />
+              ) : (
+                <>
+                  <AppleLogo color="#000" />
+                  <Text style={styles.authButtonText}>Sign in with Apple</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
