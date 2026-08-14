@@ -71,6 +71,32 @@ const HIDE_HEADER_JS = `
   true;
 `;
 
+// Android routes every notification through a channel. The id here must match
+// the `defaultChannel` in app.json's expo-notifications plugin config — that is
+// what the server's pushes resolve to, since the send payload deliberately
+// carries no channelId (an unknown channelId is dropped silently by Android).
+const CHECKIN_CHANNEL_ID = "checkin-reminders";
+
+// Created on every launch — the call is idempotent — and deliberately NOT
+// gated on notification permission: the channel has to exist for delivery to
+// resolve, whether or not POST_NOTIFICATIONS has been granted yet.
+//
+// IMPORTANCE IS FIXED AT CREATION. Android will not let the app raise it
+// later; only the user can, in system settings. HIGH is deliberate and must
+// be right the first time — check-in reminders are time-critical, and at
+// DEFAULT they would not peek as a heads-up notification. Changing this later
+// means shipping a new channel id and orphaning the old one.
+async function setupAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(CHECKIN_CHANNEL_ID, {
+    name: "Check-in reminders",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 250, 250],
+  });
+}
+
 async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) return null;
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -193,6 +219,9 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    // No-op on iOS. Runs regardless of permission state — see the function.
+    setupAndroidNotificationChannel();
+
     registerForPushNotifications().then((token) => {
       if (token) {
         pushTokenRef.current = token;
