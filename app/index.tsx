@@ -35,9 +35,14 @@ import { supabase } from "../lib/supabase";
 import { buildInjectSessionJS, getAccessToken } from "../lib/session";
 import { useGuest } from "./_layout";
 
+// shouldShowAlert is deprecated and no longer satisfies NotificationBehavior;
+// it split into shouldShowBanner (the heads-up peek) and shouldShowList (the
+// notification tray/centre entry). Both are required, so setting only the old
+// field left this call permanently failing typecheck.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
