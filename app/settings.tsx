@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -446,12 +447,16 @@ export default function SettingsScreen() {
             <View style={styles.separator} />
             <TouchableOpacity
               style={styles.row}
-              onPress={() => Linking.openURL('app-settings:')}
+              onPress={() => Linking.openSettings()}
               activeOpacity={0.7}
             >
               <View style={styles.rowLeft}>
                 <Text style={styles.rowLabel}>Push Notifications</Text>
-                <Text style={styles.rowSub}>Manage in iPhone Settings</Text>
+                <Text style={styles.rowSub}>
+                  {Platform.OS === 'ios'
+                    ? 'Manage in iPhone Settings'
+                    : 'Manage in Android Settings'}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
