@@ -160,6 +160,9 @@ export default function HomeScreen() {
 
   const pushTokenRef = useRef<string | null>(null);
   const pushTokenSaved = useRef(false);
+  // In-memory only, per the "persist nothing new" constraint: it just stops
+  // onLoadEnd re-running registration on every subsequent page load.
+  const pushRegisterStarted = useRef(false);
   const retryCount = useRef(0);
   const MAX_RETRIES = 5;
 
@@ -222,12 +225,12 @@ export default function HomeScreen() {
     // No-op on iOS. Runs regardless of permission state — see the function.
     setupAndroidNotificationChannel();
 
-    registerForPushNotifications().then((token) => {
-      if (token) {
-        pushTokenRef.current = token;
-        // Token will be saved when WebView finishes loading (see onLoadEnd)
-      }
-    });
+    // Push registration is NOT here. It used to be, which meant the OS
+    // permission prompt fired on mount — including for guests, who have no
+    // account and nothing to be reminded about. On Android 13+ that spends the
+    // one realistic POST_NOTIFICATIONS ask at the worst possible moment: a
+    // second denial is treated as "don't ask again". It now fires from the
+    // WebView's onLoadEnd instead, which only the authenticated branch renders.
 
     // Baseline in-app badge fetch on mount.
     refreshMessageCount();
@@ -613,6 +616,15 @@ export default function HomeScreen() {
           if (data.session) {
             const js = buildInjectSessionJS(data.session);
             localWebViewRef.current?.injectJavaScript(js);
+          }
+
+          // Ask for notification permission only once the authenticated
+          // dashboard has actually loaded. The guest branch never renders this
+          // WebView, so guests are never prompted.
+          if (!pushRegisterStarted.current) {
+            pushRegisterStarted.current = true;
+            const token = await registerForPushNotifications();
+            if (token) pushTokenRef.current = token;
           }
 
           savePushToken();
