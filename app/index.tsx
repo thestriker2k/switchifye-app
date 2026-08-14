@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   AppState,
   AppStateStatus,
   Image,
@@ -13,6 +12,16 @@ import {
   Modal,
   Pressable,
 } from "react-native";
+// SafeAreaView from react-native-safe-area-context, NOT from react-native.
+// React Native's own SafeAreaView is iOS-only — on Android it renders as a
+// plain View and applies no insets at all, which is why the WebView drew
+// under the status bar there while iOS looked correct.
+//
+// This one is backed by a native view that reads the real window insets on
+// both platforms. Default edges are all four, applied additively over the
+// view's own padding — on iOS that resolves to exactly the padding RN's
+// SafeAreaView was already applying, so iOS rendering is unchanged.
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
