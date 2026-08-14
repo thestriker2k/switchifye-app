@@ -27,6 +27,7 @@
     "android": {
       "package": "com.switchifye.app",
       "newArchEnabled": false,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -37,7 +38,9 @@
       [
         "expo-notifications",
         {
-          "color": "#3B82F6"
+          "icon": "./assets/notification-icon.png",
+          "color": "#3B82F6",
+          "defaultChannel": "checkin-reminders"
         }
       ],
       "expo-router",

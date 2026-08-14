@@ -18,6 +18,13 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# FCM service account key — uploaded to EAS credentials, never committed.
+# NOTE: google-services.json is NOT ignored; it holds only public identifiers
+# and must be committed for the Android build to register with FCM.
+google-service-account*.json
+fcm-service-account*.json
+service-account*.json
+
 # Metro
 .metro-health-check*
 

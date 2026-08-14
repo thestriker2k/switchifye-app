@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "764850082562",
+    "project_id": "switchifye",
+    "storage_bucket": "switchifye.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764850082562:android:b128445d0baee30deda81b",
+        "android_client_info": {
+          "package_name": "com.switchifye.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsRE4omoIC8ShtquNfsXKcqQPFYVMZNeU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
