@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  Platform,
 } from "react-native";
 // SafeAreaView from react-native-safe-area-context, NOT from react-native.
 // React Native's own SafeAreaView is iOS-only — on Android it renders as a
@@ -559,7 +560,17 @@ export default function HomeScreen() {
         sharedCookiesEnabled={true}
         domStorageEnabled={true}
         javaScriptEnabled={true}
-        userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Switchifye/1.0"
+        // The token is how the web app tells an app session from a browser one.
+        // The iOS string is byte-identical to what shipped before; Android gets
+        // a distinct token so it stops being attributed as iOS. The two are
+        // disjoint under the web regexes — "SwitchifyeAndroid/1.0" contains no
+        // "Switchifye/" substring. Do not drop " Safari" from the base string:
+        // the web fallback check keys on its absence to spot generic iOS WebViews.
+        userAgent={
+          Platform.OS === "android"
+            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 SwitchifyeAndroid/1.0"
+            : "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Switchifye/1.0"
+        }
         onLoadEnd={async () => {
           localWebViewRef.current?.injectJavaScript(HIDE_HEADER_JS);
 
