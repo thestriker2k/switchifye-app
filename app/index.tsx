@@ -58,6 +58,16 @@ const MESSAGES_URL = "https://app.switchifye.com/dashboard/messages";
 // gets handed off to the system browser instead (see onShouldStartLoadWithRequest).
 const APP_HOST = "app.switchifye.com";
 
+// The web /login page must never render inside the shell — native login is the
+// only login. Anchored so it matches scheme://host/login and /login/... plus
+// query/hash, and CANNOT be tripped by an unrelated path that merely contains
+// the word "login".
+const LOGIN_PATH_RE = /^https?:\/\/[^/]+\/login(?:[/?#]|$)/i;
+
+function isAppLoginUrl(url: string): boolean {
+  return LOGIN_PATH_RE.test(url) && url.includes(APP_HOST);
+}
+
 const HIDE_HEADER_JS = `
   (function() {
     const style = document.createElement('style');
@@ -196,6 +206,32 @@ export default function HomeScreen() {
         setTimeout(savePushToken, 3000 * retryCount.current);
       }
     }
+  };
+
+  // Routes any attempt to reach the web /login page into the NATIVE login flow.
+  //
+  // Blocking the navigation is NOT sufficient on its own, for two reasons:
+  //
+  //   1. The native Supabase session lives in AsyncStorage (lib/supabase.ts)
+  //      and is completely separate from the WebView's own storage. A logout
+  //      performed inside the web app clears only the web side — _layout still
+  //      sees a live session and keeps rendering this screen.
+  //   2. Navigating to /login while that native session is live is bounced
+  //      straight back to "/" by _layout's redirect effect, so a router.replace
+  //      here would just ping-pong.
+  //
+  // Clearing the native session is therefore the actual mechanism: signOut
+  // fires onAuthStateChange, _layout sets session to null, and its effect
+  // redirects to the native login screen on its own.
+  const webLoginHandled = useRef(false);
+
+  const routeToNativeLogin = () => {
+    if (webLoginHandled.current) return;
+    webLoginHandled.current = true;
+    supabase.auth.signOut().catch(() => {
+      // Nothing further to do — the navigation is blocked either way, so the
+      // web login page still never renders.
+    });
   };
 
   // Same call the web header makes. Fails silent in every direction: no token,
@@ -632,6 +668,15 @@ export default function HomeScreen() {
         onShouldStartLoadWithRequest={(request) => {
           const url = request.url ?? "";
 
+          // MUST precede the on-host allow below — /login is on our own host and
+          // would otherwise be waved straight through. Covers hard loads and
+          // full-page redirects; client-side ones are caught in
+          // onNavigationStateChange.
+          if (isAppLoginUrl(url)) {
+            routeToNativeLogin();
+            return false;
+          }
+
           // Anything on our own host (plus about:blank / data: bootstraps) loads
           // in the WebView exactly as before. Normal navigation is untouched.
           if (
@@ -654,6 +699,18 @@ export default function HomeScreen() {
         }}
         onNavigationStateChange={(navState) => {
           const url = navState.url ?? '';
+
+          // Backstop for CLIENT-SIDE navigation, and the case that actually
+          // fires in practice: the web app's logged-out redirect is a Next.js
+          // router.replace("/login"), which mutates history without issuing a
+          // load request, so it never reaches onShouldStartLoadWithRequest.
+          // (This handler already observes SPA route changes — that is how
+          // showNav tracks movement between dashboard subpages.)
+          if (isAppLoginUrl(url)) {
+            routeToNativeLogin();
+            return;
+          }
+
           setShowNav(url.includes('/dashboard'));
 
           // Keep the badge honest after the user acts on the Messages page
