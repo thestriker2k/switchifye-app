@@ -191,7 +191,10 @@ export default function HomeScreen() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ push_token: token }),
+        // platform is optional server-side and purely descriptive — the
+        // registration endpoint validates it against 'ios'/'android' and
+        // ignores anything else, so older builds that omit it still work.
+        body: JSON.stringify({ push_token: token, platform: Platform.OS }),
       });
 
       if (res.ok) {
@@ -253,8 +256,27 @@ export default function HomeScreen() {
     }
   };
 
-  const handleWebViewMessage = (_event: any) => {
-    // Reserved for future WebView → native messaging
+  // WebView → native messaging.
+  //
+  // Strictly allow-listed: exactly one message type is recognised and anything
+  // else — malformed JSON, unknown types, a page we don't control — is ignored
+  // in silence. The WebView renders a remote origin, so treat every message as
+  // untrusted input and never let it select a destination directly.
+  //
+  // 'open_paywall' exists for ANDROID. The web upgrade CTA is still hidden for
+  // iOS (App Store 3.1.1 anti-steering), so iOS never posts this. Routing to
+  // the native paywall keeps purchases inside the native billing flow on both
+  // platforms — see the MenuItem contract above for why Settings is native too.
+  const handleWebViewMessage = (event: any) => {
+    let type: unknown;
+    try {
+      type = JSON.parse(event?.nativeEvent?.data ?? "")?.type;
+    } catch {
+      return; // not JSON — not ours
+    }
+    if (type === "open_paywall") {
+      router.push("/paywall");
+    }
   };
 
   useEffect(() => {

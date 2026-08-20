@@ -12,7 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ProductSubscription } from 'react-native-iap';
+// Only the localized price is read from the product, so the paywall models it
+// structurally rather than importing a store-specific type. react-native-iap's
+// ProductSubscription and RevenueCat's package both satisfy this.
+type PaywallProduct = { displayPrice: string };
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
 import {
   disconnectFromStore,
@@ -65,7 +68,7 @@ export default function PaywallScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [product, setProduct] = useState<ProductSubscription | null>(null);
+  const [product, setProduct] = useState<PaywallProduct | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   const dismissPaywall = () => {
