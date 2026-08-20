@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
 import { supabase } from "../lib/supabase";
 import { handleAuthCallback } from "../lib/auth-handler";
+import { configureRevenueCat, signOutRevenueCat } from "../lib/revenuecat";
 import type { Session } from "@supabase/supabase-js";
 
 type GuestContextType = {
@@ -67,6 +68,31 @@ export default function RootLayout() {
       linkSub.remove();
     };
   }, []);
+
+  // RevenueCat identity — ANDROID ONLY. iOS never configures this SDK; it stays
+  // on react-native-iap.
+  //
+  // Configured only once a session has RESOLVED, never anonymously. RevenueCat's
+  // app_user_id must be the Supabase user id, because it is the only thing tying
+  // a Play purchase back to a user row — the webhook rejects anonymous
+  // ($RCAnonymousID:...) ids precisely so an unattributable purchase can never
+  // be written. Configuring before the session lands would produce exactly those.
+  //
+  // This runs off `session`, which is the same value the redirect effect below
+  // uses, so login and logout are both covered by one subscription:
+  // configureRevenueCat re-identifies if the SDK is already running, and signing
+  // out calls logOut — required, or the SDK keeps the previous app_user_id and
+  // the next account on this device inherits its entitlements.
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    if (session === undefined) return; // still resolving — do nothing yet
+
+    if (session?.user?.id) {
+      configureRevenueCat(session.user.id);
+    } else {
+      signOutRevenueCat();
+    }
+  }, [session]);
 
   // Redirect based on auth state only (no paywall gating)
   useEffect(() => {
