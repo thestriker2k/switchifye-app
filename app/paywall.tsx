@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,6 +25,24 @@ import {
   restorePurchases,
   addPurchaseListeners,
 } from '../lib/iap';
+
+// ── Store legalese ─────────────────────────────────────────────────────
+
+// The iOS text is byte-for-byte what shipped; only the store-specific clauses
+// differ on Android. Apple and Google both require this disclosure on the
+// purchase screen, so neither branch may be dropped.
+const LEGAL_COPY =
+  Platform.OS === 'android'
+    ? 'Payment will be charged to your Google Play account at confirmation of purchase. ' +
+      'Subscription automatically renews unless it is canceled at least 24 hours before the ' +
+      'end of the current period. Your account will be charged for renewal within 24 hours ' +
+      'prior to the end of the current period. You can manage and cancel your subscriptions ' +
+      'in the Play Store under Payments and subscriptions after purchase.'
+    : 'Payment will be charged to your Apple ID account at confirmation of purchase. ' +
+      'Subscription automatically renews unless it is canceled at least 24 hours before the ' +
+      'end of the current period. Your account will be charged for renewal within 24 hours ' +
+      'prior to the end of the current period. You can manage and cancel your subscriptions ' +
+      'by going to your account settings on the App Store after purchase.';
 
 // ── Feature data ───────────────────────────────────────────────────────
 
@@ -330,13 +349,9 @@ export default function PaywallScreen() {
         </TouchableOpacity>
 
         {/* Legal */}
-        <Text style={styles.legal}>
-          Payment will be charged to your Apple ID account at confirmation of purchase.
-          Subscription automatically renews unless it is canceled at least 24 hours before the
-          end of the current period. Your account will be charged for renewal within 24 hours
-          prior to the end of the current period. You can manage and cancel your subscriptions
-          by going to your account settings on the App Store after purchase.
-        </Text>
+        {/* Both stores require this disclosure, so it is branched rather than
+            softened. The iOS string is the one that shipped, unchanged. */}
+        <Text style={styles.legal}>{LEGAL_COPY}</Text>
 
         <View style={styles.legalLinks}>
           <TouchableOpacity onPress={() => Linking.openURL('https://switchifye.com/terms')}>
