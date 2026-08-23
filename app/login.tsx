@@ -24,6 +24,7 @@ const REVIEW_EMAIL = "review@switchifye.com";
 const REVIEW_PASSWORD = process.env.EXPO_PUBLIC_REVIEW_PASSWORD ?? "";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+WebBrowser.maybeCompleteAuthSession();
 
 function GoogleLogo() {
   return (
