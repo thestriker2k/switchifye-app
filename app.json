@@ -3,7 +3,7 @@
     "name": "Switchifye",
     "slug": "switchifye-app",
     "scheme": "switchifye",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
@@ -48,7 +48,17 @@
       "expo-web-browser",
       "expo-apple-authentication",
       "react-native-iap",
-      ["expo-build-properties", { "android": { "kotlinVersion": "2.2.0" } }]
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.2.0",
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# react-native-nitro-modules / react-native-iap: native code resolves these classes by name\n-keep class com.margelo.nitro.** { *; }\n# expo-notifications: mirrors its own proguard-rules.pro, which isn't declared as consumer rules\n-keep class expo.modules.notifications.** { *; }\n# react-native-webview: JS bridge methods are called by name\n-keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
